@@ -82,6 +82,55 @@
         .story-section:nth-child(odd) .content-card {
             margin-left: auto;
         }
+
+        /* Pin info box styles */
+        .pin-infobox {
+            position: absolute;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            padding: 12px;
+            min-width: 200px;
+            z-index: 1000;
+            display: none;
+            pointer-events: auto;
+        }
+
+        .pin-infobox.active {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .pin-infobox img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .pin-infobox-text {
+            flex: 1;
+        }
+
+        .pin-infobox-text h3 {
+            font-size: 16px;
+            margin: 0 0 4px 0;
+            color: #1a1a1a;
+        }
+
+        .pin-infobox-text p {
+            font-size: 14px;
+            margin: 0;
+            color: #666;
+        }
+
+        .pin-marker {
+            width: 24px;
+            height: 32px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
     </style>
 </head>
 <body>
@@ -224,34 +273,119 @@
         // Add navigation controls
         map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-        // Add black markers in the Lyngvær area
+        // Add clickable markers with info boxes in the Lyngvær area
         map.on('load', () => {
-            // Points of interest in Lyngvær area
+            // Points of interest in Lyngvær area with drive times and images
             const lyngvaerMarkers = [
-                { lng: 13.619, lat: 68.143, name: 'Lyngvær Center' },
-                { lng: 13.625, lat: 68.145, name: 'North Point' },
-                { lng: 13.613, lat: 68.140, name: 'South Bay' },
-                { lng: 13.621, lat: 68.147, name: 'Harbor Area' },
-                { lng: 13.615, lat: 68.141, name: 'Coastal View' }
+                {
+                    lng: 13.619, lat: 68.143,
+                    name: 'Lyngvær Center',
+                    driveTime: 0,
+                    image: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=200&h=200&fit=crop'
+                },
+                {
+                    lng: 13.625, lat: 68.145,
+                    name: 'North Point',
+                    driveTime: 5,
+                    image: 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=200&h=200&fit=crop'
+                },
+                {
+                    lng: 13.613, lat: 68.140,
+                    name: 'South Bay',
+                    driveTime: 8,
+                    image: 'https://images.unsplash.com/photo-1527004013197-933c4bb611b3?w=200&h=200&fit=crop'
+                },
+                {
+                    lng: 13.621, lat: 68.147,
+                    name: 'Harbor Area',
+                    driveTime: 3,
+                    image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=200&h=200&fit=crop'
+                },
+                {
+                    lng: 13.615, lat: 68.141,
+                    name: 'Coastal View',
+                    driveTime: 6,
+                    image: 'https://images.unsplash.com/photo-1519904981063-b0cf448d479e?w=200&h=200&fit=crop'
+                }
             ];
 
+            let activeMarker = null;
+            let activeInfoBox = null;
+
             lyngvaerMarkers.forEach((location) => {
-                // Create custom completely black marker element
+                // Create straight-up pin marker using SVG
                 const el = document.createElement('div');
-                el.style.width = '20px';
-                el.style.height = '20px';
-                el.style.borderRadius = '50% 50% 50% 0';
-                el.style.backgroundColor = '#000000';
-                el.style.transform = 'rotate(-45deg)';
-                el.style.border = 'none';
-                el.style.cursor = 'pointer';
-                
+                el.className = 'pin-marker';
+                el.innerHTML = `
+                    <svg width="24" height="32" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 0C7.0374 0 3 4.0374 3 9C3 15.75 12 27 12 27C12 27 21 15.75 21 9C21 4.0374 16.9626 0 12 0Z" fill="#000000"/>
+                        <circle cx="12" cy="9" r="3" fill="white"/>
+                    </svg>
+                `;
+
+                // Create info box
+                const infoBox = document.createElement('div');
+                infoBox.className = 'pin-infobox';
+                infoBox.innerHTML = `
+                    <img src="${location.image}" alt="${location.name}">
+                    <div class="pin-infobox-text">
+                        <h3>${location.name}</h3>
+                        <p>${location.driveTime} min drive</p>
+                    </div>
+                `;
+                document.body.appendChild(infoBox);
+
+                // Add click handler to pin
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+
+                    // Close previous active marker
+                    if (activeMarker && activeMarker !== el) {
+                        activeMarker.querySelector('path').setAttribute('fill', '#000000');
+                    }
+                    if (activeInfoBox && activeInfoBox !== infoBox) {
+                        activeInfoBox.classList.remove('active');
+                    }
+
+                    // Toggle current marker
+                    const isActive = infoBox.classList.contains('active');
+                    if (isActive) {
+                        el.querySelector('path').setAttribute('fill', '#000000');
+                        infoBox.classList.remove('active');
+                        activeMarker = null;
+                        activeInfoBox = null;
+                    } else {
+                        el.querySelector('path').setAttribute('fill', '#FFD700');
+                        infoBox.classList.add('active');
+
+                        // Position info box near the marker
+                        const markerRect = el.getBoundingClientRect();
+                        infoBox.style.left = `${markerRect.left + markerRect.width + 10}px`;
+                        infoBox.style.top = `${markerRect.top}px`;
+
+                        activeMarker = el;
+                        activeInfoBox = infoBox;
+                    }
+                });
+
                 const marker = new mapboxgl.Marker({
                     element: el,
                     anchor: 'bottom'
                 })
                 .setLngLat([location.lng, location.lat])
                 .addTo(map);
+            });
+
+            // Close info box when clicking on map
+            map.on('click', () => {
+                if (activeMarker) {
+                    activeMarker.querySelector('path').setAttribute('fill', '#000000');
+                    activeMarker = null;
+                }
+                if (activeInfoBox) {
+                    activeInfoBox.classList.remove('active');
+                    activeInfoBox = null;
+                }
             });
         });
     </script>
