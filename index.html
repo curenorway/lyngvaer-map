@@ -334,172 +334,194 @@
                 </svg>
             `;
 
-            // Load custom pin images
+            // Load custom pin images and wait for both to load before adding layer
+            let imagesLoaded = 0;
+            const onImageLoad = () => {
+                imagesLoaded++;
+                if (imagesLoaded === 2) {
+                    setupMarkers();
+                }
+            };
+
             const pinImage = new Image(24, 32);
-            pinImage.onload = () => map.addImage('pin-black', pinImage);
+            pinImage.onload = () => {
+                map.addImage('pin-black', pinImage);
+                onImageLoad();
+            };
             pinImage.src = 'data:image/svg+xml;base64,' + btoa(pinSvg);
 
             const pinImageYellow = new Image(24, 32);
-            pinImageYellow.onload = () => map.addImage('pin-yellow', pinImageYellow);
+            pinImageYellow.onload = () => {
+                map.addImage('pin-yellow', pinImageYellow);
+                onImageLoad();
+            };
             pinImageYellow.src = 'data:image/svg+xml;base64,' + btoa(pinSvgYellow);
 
-            // Add markers as a GeoJSON source
-            map.addSource('markers', {
-                type: 'geojson',
-                data: {
-                    type: 'FeatureCollection',
-                    features: lyngvaerMarkers.map(marker => ({
-                        type: 'Feature',
-                        geometry: {
-                            type: 'Point',
-                            coordinates: [marker.lng, marker.lat]
-                        },
-                        properties: {
-                            id: marker.id,
-                            name: marker.name,
-                            driveTime: marker.driveTime,
-                            image: marker.image,
-                            active: false
-                        }
-                    }))
-                }
-            });
+            function setupMarkers() {
+                // Add markers as a GeoJSON source
+                map.addSource('markers', {
+                    type: 'geojson',
+                    data: {
+                        type: 'FeatureCollection',
+                        features: lyngvaerMarkers.map(marker => ({
+                            type: 'Feature',
+                            geometry: {
+                                type: 'Point',
+                                coordinates: [marker.lng, marker.lat]
+                            },
+                            properties: {
+                                id: marker.id,
+                                name: marker.name,
+                                driveTime: marker.driveTime,
+                                image: marker.image,
+                                active: false
+                            }
+                        }))
+                    }
+                });
 
-            // Add symbol layer for markers
-            map.addLayer({
-                id: 'marker-layer',
-                type: 'symbol',
-                source: 'markers',
-                layout: {
-                    'icon-image': 'pin-black',
-                    'icon-size': 1,
-                    'icon-anchor': 'bottom',
-                    'icon-allow-overlap': true,
-                    'icon-ignore-placement': true,
-                    'icon-pitch-alignment': 'viewport',
-                    'icon-rotation-alignment': 'viewport'
-                },
-                paint: {
-                    'icon-opacity': 1
-                }
-            });
+                // Add symbol layer for markers
+                map.addLayer({
+                    id: 'marker-layer',
+                    type: 'symbol',
+                    source: 'markers',
+                    layout: {
+                        'icon-image': 'pin-black',
+                        'icon-size': 1,
+                        'icon-anchor': 'bottom',
+                        'icon-allow-overlap': true,
+                        'icon-ignore-placement': true,
+                        'icon-pitch-alignment': 'viewport',
+                        'icon-rotation-alignment': 'viewport'
+                    },
+                    paint: {
+                        'icon-opacity': 1
+                    }
+                });
+
+                setupClickHandlers();
+            }
 
             let activeInfoBox = null;
             let activeMarkerId = null;
-
-            // Create info boxes for each marker
             const infoBoxes = {};
-            lyngvaerMarkers.forEach((location) => {
-                const infoBox = document.createElement('div');
-                infoBox.className = 'pin-infobox';
-                infoBox.innerHTML = `
-                    <img src="${location.image}" alt="${location.name}">
-                    <div class="pin-infobox-text">
-                        <h3>${location.name}</h3>
-                        <p>${location.driveTime} min drive</p>
-                    </div>
-                `;
-                document.body.appendChild(infoBox);
-                infoBoxes[location.id] = infoBox;
-            });
 
-            // Handle marker clicks
-            map.on('click', 'marker-layer', (e) => {
-                const feature = e.features[0];
-                const markerId = feature.properties.id;
-                const coords = feature.geometry.coordinates;
+            function setupClickHandlers() {
+                // Create info boxes for each marker
+                lyngvaerMarkers.forEach((location) => {
+                    const infoBox = document.createElement('div');
+                    infoBox.className = 'pin-infobox';
+                    infoBox.innerHTML = `
+                        <img src="${location.image}" alt="${location.name}">
+                        <div class="pin-infobox-text">
+                            <h3>${location.name}</h3>
+                            <p>${location.driveTime} min drive</p>
+                        </div>
+                    `;
+                    document.body.appendChild(infoBox);
+                    infoBoxes[location.id] = infoBox;
+                });
 
-                // Close previous active marker
-                if (activeMarkerId && activeMarkerId !== markerId) {
-                    const source = map.getSource('markers');
-                    const data = source._data;
-                    const prevFeature = data.features.find(f => f.properties.id === activeMarkerId);
-                    if (prevFeature) prevFeature.properties.active = false;
-                    source.setData(data);
+                // Update marker colors based on active state
+                function updateMarkerColors() {
+                    map.setLayoutProperty('marker-layer', 'icon-image', [
+                        'case',
+                        ['get', 'active'],
+                        'pin-yellow',
+                        'pin-black'
+                    ]);
+                }
 
-                    if (infoBoxes[activeMarkerId]) {
-                        infoBoxes[activeMarkerId].classList.remove('active');
+                // Handle marker clicks
+                map.on('click', 'marker-layer', (e) => {
+                    e.preventDefault();
+
+                    const feature = e.features[0];
+                    const markerId = feature.properties.id;
+                    const coords = feature.geometry.coordinates.slice(); // Copy coordinates
+
+                    // Close previous active marker
+                    if (activeMarkerId && activeMarkerId !== markerId) {
+                        const source = map.getSource('markers');
+                        const data = source._data;
+                        const prevFeature = data.features.find(f => f.properties.id === activeMarkerId);
+                        if (prevFeature) prevFeature.properties.active = false;
+                        source.setData(data);
+
+                        if (infoBoxes[activeMarkerId]) {
+                            infoBoxes[activeMarkerId].classList.remove('active');
+                        }
                     }
-                }
 
-                // Toggle current marker
-                const isActive = feature.properties.active;
-                const source = map.getSource('markers');
-                const data = source._data;
-                const currentFeature = data.features.find(f => f.properties.id === markerId);
-
-                if (isActive) {
-                    currentFeature.properties.active = false;
-                    infoBoxes[markerId].classList.remove('active');
-                    activeMarkerId = null;
-                    activeInfoBox = null;
-                } else {
-                    currentFeature.properties.active = true;
-
-                    // Position info box near the marker
-                    const point = map.project(coords);
-                    infoBoxes[markerId].style.left = `${point.x + 20}px`;
-                    infoBoxes[markerId].style.top = `${point.y - 16}px`;
-                    infoBoxes[markerId].classList.add('active');
-
-                    activeMarkerId = markerId;
-                    activeInfoBox = infoBoxes[markerId];
-                }
-
-                source.setData(data);
-                updateMarkerColors();
-            });
-
-            // Update marker colors based on active state
-            function updateMarkerColors() {
-                map.setLayoutProperty('marker-layer', 'icon-image', [
-                    'case',
-                    ['get', 'active'],
-                    'pin-yellow',
-                    'pin-black'
-                ]);
-            }
-
-            // Change cursor on hover
-            map.on('mouseenter', 'marker-layer', () => {
-                map.getCanvas().style.cursor = 'pointer';
-            });
-            map.on('mouseleave', 'marker-layer', () => {
-                map.getCanvas().style.cursor = '';
-            });
-
-            // Close info box when clicking on map
-            map.on('click', (e) => {
-                if (!e.defaultPrevented && activeMarkerId) {
+                    // Toggle current marker
+                    const isActive = feature.properties.active;
                     const source = map.getSource('markers');
                     const data = source._data;
-                    const prevFeature = data.features.find(f => f.properties.id === activeMarkerId);
-                    if (prevFeature) prevFeature.properties.active = false;
+                    const currentFeature = data.features.find(f => f.properties.id === markerId);
+
+                    if (isActive) {
+                        currentFeature.properties.active = false;
+                        infoBoxes[markerId].classList.remove('active');
+                        activeMarkerId = null;
+                        activeInfoBox = null;
+                    } else {
+                        currentFeature.properties.active = true;
+
+                        // Position info box near the marker
+                        const point = map.project(coords);
+                        infoBoxes[markerId].style.left = `${point.x + 20}px`;
+                        infoBoxes[markerId].style.top = `${point.y - 16}px`;
+                        infoBoxes[markerId].classList.add('active');
+
+                        activeMarkerId = markerId;
+                        activeInfoBox = infoBoxes[markerId];
+                    }
+
                     source.setData(data);
                     updateMarkerColors();
+                });
 
-                    if (infoBoxes[activeMarkerId]) {
-                        infoBoxes[activeMarkerId].classList.remove('active');
-                    }
-                    activeMarkerId = null;
-                    activeInfoBox = null;
-                }
-            });
+                // Change cursor on hover
+                map.on('mouseenter', 'marker-layer', () => {
+                    map.getCanvas().style.cursor = 'pointer';
+                });
+                map.on('mouseleave', 'marker-layer', () => {
+                    map.getCanvas().style.cursor = '';
+                });
 
-            // Update info box positions during map movement
-            map.on('move', () => {
-                if (activeMarkerId && activeInfoBox) {
-                    const source = map.getSource('markers');
-                    const data = source._data;
-                    const activeFeature = data.features.find(f => f.properties.id === activeMarkerId);
-                    if (activeFeature) {
-                        const coords = activeFeature.geometry.coordinates;
-                        const point = map.project(coords);
-                        activeInfoBox.style.left = `${point.x + 20}px`;
-                        activeInfoBox.style.top = `${point.y - 16}px`;
+                // Close info box when clicking on map
+                map.on('click', (e) => {
+                    if (!e.defaultPrevented && activeMarkerId) {
+                        const source = map.getSource('markers');
+                        const data = source._data;
+                        const prevFeature = data.features.find(f => f.properties.id === activeMarkerId);
+                        if (prevFeature) prevFeature.properties.active = false;
+                        source.setData(data);
+                        updateMarkerColors();
+
+                        if (infoBoxes[activeMarkerId]) {
+                            infoBoxes[activeMarkerId].classList.remove('active');
+                        }
+                        activeMarkerId = null;
+                        activeInfoBox = null;
                     }
-                }
-            });
+                });
+
+                // Update info box positions during map movement
+                map.on('move', () => {
+                    if (activeMarkerId && activeInfoBox) {
+                        const source = map.getSource('markers');
+                        const data = source._data;
+                        const activeFeature = data.features.find(f => f.properties.id === activeMarkerId);
+                        if (activeFeature) {
+                            const coords = activeFeature.geometry.coordinates;
+                            const point = map.project(coords);
+                            activeInfoBox.style.left = `${point.x + 20}px`;
+                            activeInfoBox.style.top = `${point.y - 16}px`;
+                        }
+                    }
+                });
+            }
         });
     </script>
 </body>
