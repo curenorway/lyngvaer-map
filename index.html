@@ -179,12 +179,12 @@
     </div>
 
     <script>
-        mapboxgl.accessToken = 'pk.eyJ1IjoiY3VyZW5vcndheSIsImEiOiJjbWgxcXB6M28wNmowMmtzN3pnNms3c3B3In0.MY_Ios_ag6Jq1ixt7qmGOA';
+        mapboxgl.accessToken = 'pk.eyJ1IjoiY3VyZW5vcndheSIsImEiOiJjbG1vejBoNjYwa294MmxvOTMzbTczZDdyIn0.JCQkb9qpUK-453gWS6XNoA';
 
         // Initialize the map with user interactions disabled
         const map = new mapboxgl.Map({
             container: 'map',
-            style: 'mapbox://styles/mapbox/outdoors-v12',
+            style: 'mapbox://styles/curenorway/cmhxdcfvx001401qxf5ka0o1o',
             center: [10, 65], // Start with Norway overview
             zoom: 4.5,
             pitch: 0,
@@ -197,11 +197,6 @@
             touchZoomRotate: false,
             touchPitch: false,
             keyboard: false
-        });
-
-        // Error handling
-        map.on('error', (e) => {
-            console.error('Map error:', e);
         });
 
         // Tour locations with specific camera positions - Norway journey
