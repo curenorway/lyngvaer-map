@@ -287,49 +287,104 @@
                     lng: 13.619, lat: 68.143,
                     name: 'Lyngvær Center',
                     driveTime: 0,
-                    image: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=200&h=200&fit=crop'
+                    image: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=200&h=200&fit=crop',
+                    id: 'marker-0'
                 },
                 {
                     lng: 13.625, lat: 68.145,
                     name: 'North Point',
                     driveTime: 5,
-                    image: 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=200&h=200&fit=crop'
+                    image: 'https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=200&h=200&fit=crop',
+                    id: 'marker-1'
                 },
                 {
                     lng: 13.613, lat: 68.140,
                     name: 'South Bay',
                     driveTime: 8,
-                    image: 'https://images.unsplash.com/photo-1527004013197-933c4bb611b3?w=200&h=200&fit=crop'
+                    image: 'https://images.unsplash.com/photo-1527004013197-933c4bb611b3?w=200&h=200&fit=crop',
+                    id: 'marker-2'
                 },
                 {
                     lng: 13.621, lat: 68.147,
                     name: 'Harbor Area',
                     driveTime: 3,
-                    image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=200&h=200&fit=crop'
+                    image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=200&h=200&fit=crop',
+                    id: 'marker-3'
                 },
                 {
                     lng: 13.615, lat: 68.141,
                     name: 'Coastal View',
                     driveTime: 6,
-                    image: 'https://images.unsplash.com/photo-1519904981063-b0cf448d479e?w=200&h=200&fit=crop'
+                    image: 'https://images.unsplash.com/photo-1519904981063-b0cf448d479e?w=200&h=200&fit=crop',
+                    id: 'marker-4'
                 }
             ];
 
-            let activeMarker = null;
+            // Create SVG pin as data URI for Mapbox symbol
+            const pinSvg = `
+                <svg width="24" height="32" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 0C7.0374 0 3 4.0374 3 9C3 15.75 12 27 12 27C12 27 21 15.75 21 9C21 4.0374 16.9626 0 12 0Z" fill="#000000"/>
+                    <circle cx="12" cy="9" r="3" fill="white"/>
+                </svg>
+            `;
+            const pinSvgYellow = `
+                <svg width="24" height="32" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 0C7.0374 0 3 4.0374 3 9C3 15.75 12 27 12 27C12 27 21 15.75 21 9C21 4.0374 16.9626 0 12 0Z" fill="#FFD700"/>
+                    <circle cx="12" cy="9" r="3" fill="white"/>
+                </svg>
+            `;
+
+            // Load custom pin images
+            const pinImage = new Image(24, 32);
+            pinImage.onload = () => map.addImage('pin-black', pinImage);
+            pinImage.src = 'data:image/svg+xml;base64,' + btoa(pinSvg);
+
+            const pinImageYellow = new Image(24, 32);
+            pinImageYellow.onload = () => map.addImage('pin-yellow', pinImageYellow);
+            pinImageYellow.src = 'data:image/svg+xml;base64,' + btoa(pinSvgYellow);
+
+            // Add markers as a GeoJSON source
+            map.addSource('markers', {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: lyngvaerMarkers.map(marker => ({
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [marker.lng, marker.lat]
+                        },
+                        properties: {
+                            id: marker.id,
+                            name: marker.name,
+                            driveTime: marker.driveTime,
+                            image: marker.image,
+                            active: false
+                        }
+                    }))
+                }
+            });
+
+            // Add symbol layer for markers
+            map.addLayer({
+                id: 'marker-layer',
+                type: 'symbol',
+                source: 'markers',
+                layout: {
+                    'icon-image': 'pin-black',
+                    'icon-size': 1,
+                    'icon-anchor': 'bottom',
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true
+                }
+            });
+
             let activeInfoBox = null;
+            let activeMarkerId = null;
 
+            // Create info boxes for each marker
+            const infoBoxes = {};
             lyngvaerMarkers.forEach((location) => {
-                // Create straight-up pin marker using SVG
-                const el = document.createElement('div');
-                el.className = 'pin-marker';
-                el.innerHTML = `
-                    <svg width="24" height="32" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 0C7.0374 0 3 4.0374 3 9C3 15.75 12 27 12 27C12 27 21 15.75 21 9C21 4.0374 16.9626 0 12 0Z" fill="#000000"/>
-                        <circle cx="12" cy="9" r="3" fill="white"/>
-                    </svg>
-                `;
-
-                // Create info box
                 const infoBox = document.createElement('div');
                 infoBox.className = 'pin-infobox';
                 infoBox.innerHTML = `
@@ -340,57 +395,104 @@
                     </div>
                 `;
                 document.body.appendChild(infoBox);
+                infoBoxes[location.id] = infoBox;
+            });
 
-                // Add click handler to pin
-                el.addEventListener('click', (e) => {
-                    e.stopPropagation();
+            // Handle marker clicks
+            map.on('click', 'marker-layer', (e) => {
+                const feature = e.features[0];
+                const markerId = feature.properties.id;
+                const coords = feature.geometry.coordinates;
 
-                    // Close previous active marker
-                    if (activeMarker && activeMarker !== el) {
-                        activeMarker.querySelector('path').setAttribute('fill', '#000000');
+                // Close previous active marker
+                if (activeMarkerId && activeMarkerId !== markerId) {
+                    const source = map.getSource('markers');
+                    const data = source._data;
+                    const prevFeature = data.features.find(f => f.properties.id === activeMarkerId);
+                    if (prevFeature) prevFeature.properties.active = false;
+                    source.setData(data);
+
+                    if (infoBoxes[activeMarkerId]) {
+                        infoBoxes[activeMarkerId].classList.remove('active');
                     }
-                    if (activeInfoBox && activeInfoBox !== infoBox) {
-                        activeInfoBox.classList.remove('active');
-                    }
+                }
 
-                    // Toggle current marker
-                    const isActive = infoBox.classList.contains('active');
-                    if (isActive) {
-                        el.querySelector('path').setAttribute('fill', '#000000');
-                        infoBox.classList.remove('active');
-                        activeMarker = null;
-                        activeInfoBox = null;
-                    } else {
-                        el.querySelector('path').setAttribute('fill', '#FFD700');
-                        infoBox.classList.add('active');
+                // Toggle current marker
+                const isActive = feature.properties.active;
+                const source = map.getSource('markers');
+                const data = source._data;
+                const currentFeature = data.features.find(f => f.properties.id === markerId);
 
-                        // Position info box near the marker
-                        const markerRect = el.getBoundingClientRect();
-                        infoBox.style.left = `${markerRect.left + markerRect.width + 10}px`;
-                        infoBox.style.top = `${markerRect.top}px`;
+                if (isActive) {
+                    currentFeature.properties.active = false;
+                    infoBoxes[markerId].classList.remove('active');
+                    activeMarkerId = null;
+                    activeInfoBox = null;
+                } else {
+                    currentFeature.properties.active = true;
 
-                        activeMarker = el;
-                        activeInfoBox = infoBox;
-                    }
-                });
+                    // Position info box near the marker
+                    const point = map.project(coords);
+                    infoBoxes[markerId].style.left = `${point.x + 20}px`;
+                    infoBoxes[markerId].style.top = `${point.y - 16}px`;
+                    infoBoxes[markerId].classList.add('active');
 
-                const marker = new mapboxgl.Marker({
-                    element: el,
-                    anchor: 'bottom'
-                })
-                .setLngLat([location.lng, location.lat])
-                .addTo(map);
+                    activeMarkerId = markerId;
+                    activeInfoBox = infoBoxes[markerId];
+                }
+
+                source.setData(data);
+                updateMarkerColors();
+            });
+
+            // Update marker colors based on active state
+            function updateMarkerColors() {
+                map.setLayoutProperty('marker-layer', 'icon-image', [
+                    'case',
+                    ['get', 'active'],
+                    'pin-yellow',
+                    'pin-black'
+                ]);
+            }
+
+            // Change cursor on hover
+            map.on('mouseenter', 'marker-layer', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            map.on('mouseleave', 'marker-layer', () => {
+                map.getCanvas().style.cursor = '';
             });
 
             // Close info box when clicking on map
-            map.on('click', () => {
-                if (activeMarker) {
-                    activeMarker.querySelector('path').setAttribute('fill', '#000000');
-                    activeMarker = null;
-                }
-                if (activeInfoBox) {
-                    activeInfoBox.classList.remove('active');
+            map.on('click', (e) => {
+                if (!e.defaultPrevented && activeMarkerId) {
+                    const source = map.getSource('markers');
+                    const data = source._data;
+                    const prevFeature = data.features.find(f => f.properties.id === activeMarkerId);
+                    if (prevFeature) prevFeature.properties.active = false;
+                    source.setData(data);
+                    updateMarkerColors();
+
+                    if (infoBoxes[activeMarkerId]) {
+                        infoBoxes[activeMarkerId].classList.remove('active');
+                    }
+                    activeMarkerId = null;
                     activeInfoBox = null;
+                }
+            });
+
+            // Update info box positions during map movement
+            map.on('move', () => {
+                if (activeMarkerId && activeInfoBox) {
+                    const source = map.getSource('markers');
+                    const data = source._data;
+                    const activeFeature = data.features.find(f => f.properties.id === activeMarkerId);
+                    if (activeFeature) {
+                        const coords = activeFeature.geometry.coordinates;
+                        const point = map.project(coords);
+                        activeInfoBox.style.left = `${point.x + 20}px`;
+                        activeInfoBox.style.top = `${point.y - 16}px`;
+                    }
                 }
             });
         });
