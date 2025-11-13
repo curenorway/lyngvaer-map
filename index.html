@@ -179,7 +179,7 @@
     </div>
 
     <script>
-        mapboxgl.accessToken = 'pk.eyJ1IjoiY3VyZW5vcndheSIsImEiOiJjbG1vejBoNjYwa294MmxvOTMzbTczZDdyIn0.JCQkb9qpUK-453gWS6XNoA';
+        mapboxgl.accessToken = 'pk.eyJ1IjoiY3VyZW5vcndheSIsImEiOiJjbWgxcXB6M28wNmowMmtzN3pnNms3c3B3In0.MY_Ios_ag6Jq1ixt7qmGOA';
 
         // Initialize the map with user interactions disabled
         const map = new mapboxgl.Map({
@@ -269,9 +269,6 @@
         sections.forEach(section => {
             observer.observe(section);
         });
-
-        // Add navigation controls
-        map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
         // Add clickable markers with info boxes in the Lyngvær area
         map.on('load', () => {
