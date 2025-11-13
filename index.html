@@ -184,7 +184,7 @@
         // Initialize the map with user interactions disabled
         const map = new mapboxgl.Map({
             container: 'map',
-            style: 'mapbox://styles/curenorway/cmhxdcfvx001401qxf5ka0o1o',
+            style: 'mapbox://styles/mapbox/outdoors-v12',
             center: [10, 65], // Start with Norway overview
             zoom: 4.5,
             pitch: 0,
@@ -197,6 +197,11 @@
             touchZoomRotate: false,
             touchPitch: false,
             keyboard: false
+        });
+
+        // Error handling
+        map.on('error', (e) => {
+            console.error('Map error:', e);
         });
 
         // Tour locations with specific camera positions - Norway journey
