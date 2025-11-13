@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapbox Scroll Tour</title>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        #map {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        .scroll-container {
+            position: relative;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .spacer {
+            height: 30vh;
+        }
+
+        .story-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 40px;
+            pointer-events: none;
+        }
+
+        .content-card {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 40px;
+            border-radius: 8px;
+            max-width: 500px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            pointer-events: auto;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .content-card h2 {
+            font-size: 32px;
+            margin-bottom: 16px;
+            color: #1a1a1a;
+        }
+
+        .content-card p {
+            font-size: 18px;
+            line-height: 1.6;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .step-indicator {
+            display: inline-block;
+            background: #333;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+
+        .story-section:nth-child(odd) .content-card {
+            margin-left: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="scroll-container">
+        <div class="spacer"></div>
+
+        <section class="story-section" data-location="0">
+            <div class="content-card">
+                <span class="step-indicator">Step 1 of 4</span>
+                <h2>🏔️ Norway - Land of the Midnight Sun</h2>
+                <p>Welcome to Norway, a country of dramatic fjords, northern lights, and stunning coastal landscapes stretching from the North Sea to the Arctic Circle.</p>
+                <p>With over 25,000 kilometers of coastline and countless islands, Norway offers some of the world's most spectacular natural beauty.</p>
+            </div>
+        </section>
+
+        <section class="story-section" data-location="1">
+            <div class="content-card">
+                <span class="step-indicator">Step 2 of 4</span>
+                <h2>🌊 Northern Norway & Lofoten</h2>
+                <p>We journey north of the Arctic Circle to the Lofoten archipelago, famous for its dramatic mountains rising directly from the sea.</p>
+                <p>This region is known for fishing villages, surfing, hiking, and some of Europe's most stunning scenery.</p>
+            </div>
+        </section>
+
+        <section class="story-section" data-location="2">
+            <div class="content-card">
+                <span class="step-indicator">Step 3 of 4</span>
+                <h2>🎣 Approaching Lyngvær</h2>
+                <p>As we zoom closer, we approach Lyngvær, a small fishing village in the heart of Lofoten's natural paradise.</p>
+                <p>The area is characterized by crystal-clear waters, rugged peaks, and traditional red fishing cabins called "rorbuer".</p>
+            </div>
+        </section>
+
+        <section class="story-section" data-location="3">
+            <div class="content-card">
+                <span class="step-indicator">Step 4 of 4</span>
+                <h2>🏡 Lyngvær</h2>
+                <p>Here we are in Lyngvær, a peaceful corner of Lofoten where nature and tradition meet.</p>
+                <p>This intimate view shows the intricate coastline, small islands, and the authentic Norwegian coastal lifestyle that has thrived here for generations.</p>
+            </div>
+        </section>
+
+        <div class="spacer"></div>
+    </div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiY3VyZW5vcndheSIsImEiOiJjbG1vejBoNjYwa294MmxvOTMzbTczZDdyIn0.JCQkb9qpUK-453gWS6XNoA';
+
+        // Initialize the map with user interactions disabled
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/curenorway/cmhxdcfvx001401qxf5ka0o1o',
+            center: [10, 65], // Start with Norway overview
+            zoom: 4.5,
+            pitch: 0,
+            bearing: 0,
+            // Disable all user interactions during the tour
+            scrollZoom: false,
+            dragPan: false,
+            dragRotate: false,
+            doubleClickZoom: false,
+            touchZoomRotate: false,
+            touchPitch: false,
+            keyboard: false
+        });
+
+        // Tour locations with specific camera positions - Norway journey
+        const locations = [
+            {
+                center: [10, 65], // All of Norway
+                zoom: 4.5,
+                pitch: 0,
+                bearing: 0,
+                duration: 2500
+            },
+            {
+                center: [13.5, 68.2], // Northern Norway - Lofoten region
+                zoom: 7.5,
+                pitch: 30,
+                bearing: 0,
+                duration: 2500
+            },
+            {
+                center: [13.6, 68.15], // Closer to Lyngvær
+                zoom: 10.5,
+                pitch: 45,
+                bearing: -15,
+                duration: 2000
+            },
+            {
+                center: [13.619, 68.143], // Lyngvær perfectly framed
+                zoom: 13.5,
+                pitch: 60,
+                bearing: 30,
+                duration: 2000
+            }
+        ];
+
+        // Track current active section
+        let activeSection = -1;
+
+        // Set up Intersection Observer
+        const sections = document.querySelectorAll('.story-section');
+        
+        const observerOptions = {
+            threshold: 0.5, // Trigger when 50% of section is visible
+            rootMargin: '0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const locationIndex = parseInt(entry.target.dataset.location);
+                    
+                    // Only fly to location if it's different from current
+                    if (locationIndex !== activeSection) {
+                        activeSection = locationIndex;
+                        const location = locations[locationIndex];
+                        
+                        map.flyTo({
+                            center: location.center,
+                            zoom: location.zoom,
+                            pitch: location.pitch,
+                            bearing: location.bearing,
+                            duration: location.duration,
+                            essential: true
+                        });
+                    }
+                }
+            });
+        }, observerOptions);
+
+        // Observe all story sections
+        sections.forEach(section => {
+            observer.observe(section);
+        });
+
+        // Add navigation controls
+        map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+        // Add black markers in the Lyngvær area
+        map.on('load', () => {
+            // Points of interest in Lyngvær area
+            const lyngvaerMarkers = [
+                { lng: 13.619, lat: 68.143, name: 'Lyngvær Center' },
+                { lng: 13.625, lat: 68.145, name: 'North Point' },
+                { lng: 13.613, lat: 68.140, name: 'South Bay' },
+                { lng: 13.621, lat: 68.147, name: 'Harbor Area' },
+                { lng: 13.615, lat: 68.141, name: 'Coastal View' }
+            ];
+
+            lyngvaerMarkers.forEach((location) => {
+                // Create custom completely black marker element
+                const el = document.createElement('div');
+                el.style.width = '20px';
+                el.style.height = '20px';
+                el.style.borderRadius = '50% 50% 50% 0';
+                el.style.backgroundColor = '#000000';
+                el.style.transform = 'rotate(-45deg)';
+                el.style.border = 'none';
+                el.style.cursor = 'pointer';
+                
+                const marker = new mapboxgl.Marker({
+                    element: el,
+                    anchor: 'bottom'
+                })
+                .setLngLat([location.lng, location.lat])
+                .addTo(map);
+            });
+        });
+    </script>
+</body>
+</html>
